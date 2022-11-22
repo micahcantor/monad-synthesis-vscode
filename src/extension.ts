@@ -18,25 +18,26 @@ export class Synthesizer implements vscode.CodeActionProvider {
 		vscode.CodeActionKind.QuickFix
 	];
 
-	public provideCodeActions(document: vscode.TextDocument, range: vscode.Range): vscode.CodeAction[] | undefined {
+	public async provideCodeActions(document: vscode.TextDocument, range: vscode.Range): Promise<vscode.CodeAction[] | undefined> {
 		const functionName = document.getText(range);
 		if (!functionName.startsWith("run")) {
 			return;
 		} else {
-			const synthesizeDefinition = this.createFix(document, range, functionName);
+			const synthesizeDefinition = await this.createFix(document, range, functionName);
 			return [synthesizeDefinition];
 		}
 	}
 
-	private createFix(document: vscode.TextDocument, range: vscode.Range, functionName: string): vscode.CodeAction {
+	private async createFix(document: vscode.TextDocument, range: vscode.Range, functionName: string): Promise<vscode.CodeAction> {
 		const fix = new vscode.CodeAction('Generate definition...', vscode.CodeActionKind.QuickFix);
-		const synthesisResult = runSynthesis(document.fileName, functionName);
+		const synthesisResult = await runSynthesis(document.fileName, functionName);
 		console.log("result: " + synthesisResult);
 		fix.edit = new vscode.WorkspaceEdit();
-		fix.edit.insert(document.uri, range.end.translate(0, 4), synthesisResult);
+		const replaceRange = new vscode.Range(range.end.translate(0, 5), range.end.translate(0, 5 + synthesisResult.length))
+		fix.edit.replace(document.uri, replaceRange, synthesisResult);
 		return fix;
 	}
 }
 
 // This method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate() { }
