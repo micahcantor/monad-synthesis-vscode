@@ -1,25 +1,41 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import { runSynthesis } from './synthesis';
 
 // This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
+// Extension is activated when a Haskell file is opened
 export function activate(context: vscode.ExtensionContext) {
+	console.log('activating');
+	context.subscriptions.push(
+		vscode.languages.registerCodeActionsProvider('haskell', new Synthesizer(), {
+			providedCodeActionKinds: Synthesizer.providedCodeActionKinds
+		}));
+}
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "monad-synthesis-vscode" is now active!');
+export class Synthesizer implements vscode.CodeActionProvider {
+	public static readonly providedCodeActionKinds = [
+		vscode.CodeActionKind.QuickFix
+	];
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	let disposable = vscode.commands.registerCommand('monad-synthesis-vscode.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from Monad Transformer Synthesis (Haskell)!');
-	});
+	public provideCodeActions(document: vscode.TextDocument, range: vscode.Range): vscode.CodeAction[] | undefined {
+		const functionName = document.getText(range);
+		if (!functionName.startsWith("run")) {
+			return;
+		} else {
+			const synthesizeDefinition = this.createFix(document, range, functionName);
+			return [synthesizeDefinition];
+		}
+	}
 
-	context.subscriptions.push(disposable);
+	private createFix(document: vscode.TextDocument, range: vscode.Range, functionName: string): vscode.CodeAction {
+		const fix = new vscode.CodeAction('Generate definition...', vscode.CodeActionKind.QuickFix);
+		const synthesisResult = runSynthesis(document.fileName, functionName);
+		console.log("result: " + synthesisResult);
+		fix.edit = new vscode.WorkspaceEdit();
+		fix.edit.insert(document.uri, range.end.translate(0, 4), synthesisResult);
+		return fix;
+	}
 }
 
 // This method is called when your extension is deactivated
